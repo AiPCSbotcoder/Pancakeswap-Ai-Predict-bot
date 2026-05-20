@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BSC Prediction Bot - Real-time PancakeSwap on-chain pattern recognition dashboard">
+    <title>🥞 BSC Prediction Bot - Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-brand">
+            <span class="logo">🥞</span>
+            <div>
+                <h1>BSC Prediction Bot</h1>
+                <span class="subtitle">PancakeSwap Pattern Recognition</span>
+            </div>
+        </div>
+        <div class="header-status">
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Search -->
+        <section class="search-section" id="searchSection">
+            <div class="search-bar">
+                <input type="text" id="tokenInput" placeholder="Enter token address (0x...)">
+                <button class="btn-primary" id="predictBtn" onclick="predictToken()">Analyze</button>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-label">Total Predictions</div>
+                <div class="stat-value cyan" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Bullish Signals</div>
+                <div class="stat-value green" id="statBullish">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Bearish Signals</div>
+                <div class="stat-value red" id="statBearish">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Confidence</div>
+                <div class="stat-value yellow" id="statConfidence">0%</div>
+            </div>
+        </section>
+
+        <!-- Predictions Table -->
+        <section class="predictions-section" id="predictionsSection">
+            <div class="section-header">
+                <h2>📊 Live Predictions <span class="live-badge">Live</span></h2>
+            </div>
+            <div id="predictionsContainer">
+                <table class="predictions-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Direction</th>
+                            <th>Confidence</th>
+                            <th>Price (BNB)</th>
+                            <th>Risk</th>
+                            <th>Alert</th>
+                            <th>Window</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predictionsBody">
+                    </tbody>
+                </table>
+                <div class="empty-state" id="emptyState">
+                    <div class="icon">🔍</div>
+                    <p>No predictions yet. Enter a token address or wait for auto-scan.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // ─── State ───
+        let ws = null;
+        let predictions = [];
+        let reconnectTimer = null;
+
+        // ─── WebSocket ───
+        function connectWS() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.onopen = () => {
+                document.getElementById('statusDot').classList.remove('offline');
+                document.getElementById('statusText').textContent = 'Connected';
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'prediction') {
+                    addPrediction(msg.data);
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('statusDot').classList.add('offline');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                reconnectTimer = setTimeout(connectWS, 5000);
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
+        // ─── API Calls ───
+        async function predictToken() {
+            const input = document.getElementById('tokenInput');
+            const addr = input.value.trim();
+            if (!addr || !addr.startsWith('0x')) return;
+
+            const btn = document.getElementById('predictBtn');
+            btn.textContent = 'Analyzing...';
+            btn.disabled = true;
+
+            try {
+                const resp = await fetch(`/api/predict/${addr}`);
+                const data = await resp.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    addPrediction(data);
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.textContent = 'Analyze';
+                btn.disabled = false;
+            }
+        }
+
+        async function loadPredictions() {
+            try {
+                const resp = await fetch('/api/predictions?limit=50');
+                const data = await resp.json();
+                if (Array.isArray(data)) {
+                    data.reverse().forEach(p => addPrediction(p));
+                }
+            } catch (err) {
+                console.error('Failed to load predictions:', err);
+            }
+        }
+
+        // ─── Rendering ───
+        function addPrediction(pred) {
+            predictions.unshift(pred);
+            if (predictions.length > 100) predictions = predictions.slice(0, 100);
+            renderPredictions();
+            updateStats();
+        }
+
+        function renderPredictions() {
+            const body = document.getElementById('predictionsBody');
+            const empty = document.getElementById('emptyState');
+
+            if (predictions.length === 0) {
+                empty.style.display = 'block';
+                body.innerHTML = '';
+                return;
+            }
+
+            empty.style.display = 'none';
+            body.innerHTML = predictions.map((p, i) => {
+                const dir = p.direction || 'NEUTRAL';
+                const dirClass = dir.toLowerCase();
+                const risk = (p.risk_level || 'unknown').toLowerCase();
+                const alert = (p.alert_level || 'info').toLowerCase();
+                const conf = p.confidence || 0;
+                const confColor = conf >= 70 ? '#10b981' : conf >= 40 ? '#f59e0b' : '#ef4444';
+
+                return `
+                    <tr class="fade-in" style="animation-delay: ${i * 0.03}s">
+                        <td>
+                            <div class="token-cell">
+                                <span class="token-symbol">${p.token_symbol || '???'}</span>
+                                <span class="token-address">${(p.token_address || '').slice(0, 10)}...</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="direction-badge ${dirClass}">
+                                ${dir === 'BULLISH' ? '🟢' : dir === 'BEARISH' ? '🔴' : '⚪'} ${dir}
+                            </span>
+                        </td>
+                        <td>
+                            <span>${conf.toFixed(0)}%</span>
+                            <div class="confidence-bar">
+                                <div class="fill" style="width: ${conf}%; background: ${confColor}"></div>
+                            </div>
+                        </td>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                            ${(p.price_bnb || 0).toFixed(10)}
+                        </td>
+                        <td><span class="risk-badge ${risk}">${(p.risk_level || 'N/A')}</span></td>
+                        <td><span class="alert-badge ${alert}">${(p.alert_level || 'INFO')}</span></td>
+                        <td style="color: var(--text-secondary)">${p.time_window || 'N/A'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const total = predictions.length;
+            const bullish = predictions.filter(p => p.direction === 'BULLISH').length;
+            const bearish = predictions.filter(p => p.direction === 'BEARISH').length;
+            const avgConf = total > 0
+                ? predictions.reduce((s, p) => s + (p.confidence || 0), 0) / total
+                : 0;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statBullish').textContent = bullish;
+            document.getElementById('statBearish').textContent = bearish;
+            document.getElementById('statConfidence').textContent = avgConf.toFixed(0) + '%';
+        }
+
+        // ─── Init ───
+        document.getElementById('tokenInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') predictToken();
+        });
+
+        connectWS();
+        loadPredictions();
+    </script>
+</body>
+</html>
