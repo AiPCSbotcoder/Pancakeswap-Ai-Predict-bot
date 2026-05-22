@@ -17,6 +17,14 @@
 
 ---
 
+## 📸 Screenshots
+
+![Dashboard](docs/screenshots/dashboard.png)
+![All Pages](docs/screenshots/allpages.png)
+![Telegram Bot](docs/screenshots/telegram.png)
+
+---
+
 ## 💰 Why Choose This Bot? The Path to Profitability
 
 Stop losing money on manual trades or guessing the unpredictable crypto market. Our enterprise-grade Prediction Bot utilizes advanced AI algorithms to predict the 5-minute BNB/USD price action on PancakeSwap with devastating accuracy.
@@ -100,8 +108,8 @@ You must have the correct versions of the following tools installed on your Wind
 Once the software above is installed, simply open your Terminal (Command Prompt or PowerShell) and paste the entire block below at once:
 
 ```bash
-git clone https://github.com/your-org/pcs-predict-bot.git
-cd pcs-predict-bot
+git clone https://github.com/AiPCSbotcoder/Pancakeswap-Ai-Predict-bot.git
+cd Pancakeswap-Ai-Predict-bot
 pip install -r requirements.txt
 npm install --prefix frontend
 python start.py
