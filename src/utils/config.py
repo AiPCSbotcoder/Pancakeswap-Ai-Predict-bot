@@ -40,14 +40,22 @@ class Settings(BaseSettings):
         description="ANKR BSC RPC fallback",
     )
 
-    # ─── PancakeSwap ───
-    pancake_router_v2: str = Field(
-        default="0x10ED43C718714eb63d5aA57B78B54704E256024E",
-        description="PancakeSwap V2 Router address",
+    # ─── PancakeSwap Prediction Game ───
+    prediction_contract: str = Field(
+        default="0x18B2A687610328590Bc8F2e5fEdDe3b582A49cdA",
+        description="PancakeSwap Prediction Contract address",
     )
-    pancake_factory_v2: str = Field(
-        default="0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
-        description="PancakeSwap V2 Factory address",
+    oracle_contract: str = Field(
+        default="0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
+        description="Chainlink Oracle Contract address",
+    )
+
+    # ─── Wallet & Auto-Trading ───
+    wallet_private_key: str = Field(
+        default="", description="Private key for auto-trading (DO NOT SHARE)"
+    )
+    default_bet_amount: float = Field(
+        default=0.01, description="Default BNB amount to bet per round"
     )
 
     # ─── BSCScan ───
